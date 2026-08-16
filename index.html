@@ -247,7 +247,7 @@ body.listening #mic .g{width:9px;height:9px;border-radius:1.5px;background:var(-
 
 <div id="quick"></div>
 <footer>
-  <input id="typed" placeholder="Speak, or write">
+  <input id="typed" placeholder="Speak, or write" enterkeyhint="send" inputmode="text" autocomplete="off" autocapitalize="off">
   <button id="mic"><span class="g"></span></button>
 </footer>
 
@@ -657,6 +657,30 @@ function pullStatus(){
 }
 setInterval(pullStatus,20000);
 
+/* ══ 앱 이름 표 ══
+   폰이 영어라 앱 이름도 영어로 등록돼 있다. 한국어로 부른 걸 옮겨준다. */
+const APP_ALIAS={
+  "유튜브":"YouTube", "유툽":"YouTube", "youtube":"YouTube",
+  "유튜브뮤직":"YT Music", "뮤직":"YT Music",
+  "카카오톡":"KakaoTalk", "카톡":"KakaoTalk",
+  "인스타":"Instagram", "인스타그램":"Instagram",
+  "네이버":"NAVER", "크롬":"Chrome", "구글":"Google",
+  "지도":"Maps", "구글맵":"Maps", "네이버지도":"NAVER Map",
+  "스포티파이":"Spotify", "넷플릭스":"Netflix", "디스코드":"Discord",
+  "카메라":"Camera", "갤러리":"Gallery", "사진":"Photos",
+  "설정":"Settings", "시계":"Clock", "계산기":"Calculator",
+  "전화":"Phone", "메시지":"Messages", "문자":"Messages",
+  "캘린더":"Calendar", "달력":"Calendar", "메모":"Samsung Notes",
+  "배민":"Baemin", "배달의민족":"Baemin", "쿠팡":"Coupang",
+  "토스":"Toss", "당근":"Daangn", "트위터":"X", "엑스":"X",
+  "구글홈":"Google Home", "홈":"Google Home",
+  "삼성인터넷":"Internet", "파일":"My Files", "플레이스토어":"Play Store"
+};
+function appName(q){
+  const k=(q||"").trim();
+  return APP_ALIAS[k] || APP_ALIAS[k.replace(/\s+/g,"")] || k;
+}
+
 /* ══ 0층: 모델을 거치지 않는 즉시 실행 ══ */
 function localIntent(s){
   const x=s.replace(/\s+/g,"");
@@ -683,7 +707,13 @@ function localIntent(s){
   m=s.match(/([가-힣A-Za-z ]{1,14})\s*(열어|실행)/);
   if(m && !/불|조명|에어컨|커튼/.test(m[1])){
     const app=m[1].trim();
-    return ()=>{ const r=P.launch(app); entry("app",app,r,"Now",true); said("Opened.",""); };
+    return ()=>{
+      const target=appName(app);
+      const r=P.launch(target);
+      const ok=!/^no app|cannot launch|launch failed/.test(r);
+      entry("app",app,ok?("Opened "+target):r,"Now",true);
+      said(ok?"Opened.":"I could not find that app.", ok?"":("Registered name: "+target));
+    };
   }
   return null;
 }
@@ -868,11 +898,20 @@ $("mic").onclick=()=>{
   if(mode==="listening") return;
   if(has()){ P.stopSpeaking(); P.listen(); } else webListen();
 };
+function sendTyped(){
+  const el=$("typed"); if(!el) return;
+  const v=(el.value||"").trim();
+  if(!v) return;
+  el.value=""; el.blur();
+  handle(v);
+}
 $("typed").addEventListener("keydown",e=>{
-  if(e.key==="Enter"&&e.target.value.trim()){
-    const v=e.target.value.trim(); e.target.value=""; e.target.blur(); handle(v);
-  }
+  if(e.key==="Enter"||e.keyCode===13||e.which===13){ e.preventDefault(); sendTyped(); }
 });
+$("typed").addEventListener("keyup",e=>{
+  if(e.key==="Enter"||e.keyCode===13){ e.preventDefault(); sendTyped(); }
+});
+$("typed").addEventListener("change",()=>sendTyped());
 
 /* ══ 설정 ══ */
 function getVal(id,d){ const e=$(id); return e? e.value : d; }
