@@ -681,6 +681,49 @@ function appName(q){
   return APP_ALIAS[k] || APP_ALIAS[k.replace(/\s+/g,"")] || k;
 }
 
+/* 앱 목록을 못 보는 대신 주소로 연다. 설치돼 있으면 그 앱이 받아준다. */
+const APP_LINK={
+  "YouTube":"https://www.youtube.com",
+  "YT Music":"https://music.youtube.com",
+  "KakaoTalk":"kakaotalk://",
+  "Instagram":"https://www.instagram.com",
+  "NAVER":"https://m.naver.com",
+  "NAVER Map":"https://m.map.naver.com",
+  "Chrome":"https://www.google.com",
+  "Google":"https://www.google.com",
+  "Maps":"https://maps.google.com",
+  "Spotify":"https://open.spotify.com",
+  "Netflix":"https://www.netflix.com",
+  "Discord":"https://discord.com/app",
+  "X":"https://x.com",
+  "Coupang":"https://m.coupang.com",
+  "Baemin":"baemin://",
+  "Toss":"supertoss://",
+  "Daangn":"https://www.daangn.com",
+  "Google Home":"https://home.google.com",
+  "Play Store":"market://search?q=apps",
+  "Photos":"https://photos.google.com"
+};
+
+/** 주소가 있으면 주소로, 없으면 이름으로 찾아본다 */
+function openApp(rawName){
+  const target=appName(rawName);
+  const link=APP_LINK[target];
+  if(link && has()){
+    try{
+      const r=P.openUrl(link);
+      return {ok:!/fail/i.test(r), target, how:"link"};
+    }catch(e){}
+  }
+  if(has()){
+    try{
+      const r=P.launch(target);
+      return {ok:!/^no app|cannot launch|launch failed/i.test(r), target, how:"list", msg:r};
+    }catch(e){}
+  }
+  return {ok:false, target, msg:"unavailable"};
+}
+
 /* ══ 0층: 모델을 거치지 않는 즉시 실행 ══ */
 function localIntent(s){
   const x=s.replace(/\s+/g,"");
@@ -708,11 +751,9 @@ function localIntent(s){
   if(m && !/불|조명|에어컨|커튼/.test(m[1])){
     const app=m[1].trim();
     return ()=>{
-      const target=appName(app);
-      const r=P.launch(target);
-      const ok=!/^no app|cannot launch|launch failed/.test(r);
-      entry("app",app,ok?("Opened "+target):r,"Now",true);
-      said(ok?"Opened.":"I could not find that app.", ok?"":("Registered name: "+target));
+      const r=openApp(app);
+      entry("app", r.target, r.ok?"Opened":(r.msg||"not found"), "Now", true);
+      said(r.ok?"Opened.":"I could not open that.", r.ok?"":"It may not be installed.");
     };
   }
   return null;
