@@ -283,6 +283,8 @@ body.listening #mic .g{width:9px;height:9px;border-radius:1.5px;background:var(-
       </select></div>
     <div class="item"><label>Wordmark</label><input id="markIn" type="text" placeholder="Jarvis"></div>
     <div class="item"><label>Korean subtitle</label><div class="switch on" id="s6"><i></i></div></div>
+    <div class="item"><label>Also notify</label><div class="switch" id="s7"><i></i></div></div>
+    <p class="ft">With this on, everything JARVIS says also arrives as a notification you can read later.</p>
 
     <div class="hd">Quick phrases</div>
     <div class="item"><label>1</label><input id="q1" type="text" placeholder="1분 타이머"></div>
@@ -335,7 +337,7 @@ const store={get:k=>{try{return localStorage.getItem(k)||""}catch(e){return""}},
              set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
 let cfg={key:"",name:"sir",cap:60000,rate:6,mac:"",outward:true,confirmCall:true,confirmMsg:true,
          elKey:"",elVoice:"",tone:"butler",act:true,offer:true,speed:1.04,pitch:0.88,engineVoice:"",
-         accent:"sapphire",ringStyle:"rich",scale:1,mark:"Jarvis",subs:true,quick:["1분 타이머","배터리","",""]};
+         accent:"sapphire",ringStyle:"rich",scale:1,mark:"Jarvis",subs:true,pushAll:false,quick:["1분 타이머","배터리","",""]};
 let budget={spent:0,cap:60000,pct:0};
 let actionLog=[], recentActions=[];
 
@@ -552,6 +554,7 @@ function said(m,s){
   feed.appendChild(d);down();
   const line=s?m+" "+s:m;
   voice(line);
+  if(cfg.pushAll && has()){ try{ P.notify(line); }catch(e){} }
   setTimeout(()=>{ if(mode==="speaking"){mode="idle";setState("Ready");} },
              Math.min(9000,1200+line.length*58));
 }
@@ -872,91 +875,85 @@ $("typed").addEventListener("keydown",e=>{
 });
 
 /* ══ 설정 ══ */
+function getVal(id,d){ const e=$(id); return e? e.value : d; }
+function getSw(id,d){ const e=$(id); return e? e.classList.contains("on") : d; }
 function paintBudget(){
   const el=$("usedVal"); if(el) el.textContent=`${budget.spent.toLocaleString()} · ${budget.pct}%`;
 }
+/* 설정 열기 — 요소 하나가 없어도 창은 반드시 열리게 한다 */
+function setVal(id,v){ const e=$(id); if(e) e.value=v; }
+function setSw(id,on){ const e=$(id); if(e) e.classList.toggle("on",!!on); }
+
 $("gear").onclick=()=>{
-  $("keyIn").value=cfg.key; $("nameIn").value=cfg.name;
-  $("capIn").value=cfg.cap; $("rateIn").value=cfg.rate; $("macIn").value=cfg.mac;
-  $("elKeyIn").value=cfg.elKey; $("elVoiceIn").value=cfg.elVoice;
-  $("nameIn2").value=cfg.name; $("toneSel").value=cfg.tone;
-  $("rateSp").value=cfg.speed; $("pitchSp").value=cfg.pitch;
-  $("s4").classList.toggle("on",cfg.act);
-  $("s5").classList.toggle("on",cfg.offer);
-  $("accentSel").value=cfg.accent; $("ringSel").value=cfg.ringStyle;
-  $("scaleSel").value=String(cfg.scale); $("markIn").value=cfg.mark;
-  $("s6").classList.toggle("on",cfg.subs);
-  [1,2,3,4].forEach(i=>{ $("q"+i).value=(cfg.quick||[])[i-1]||""; });
-  fillVoices();
-  $("s1").classList.toggle("on",cfg.outward);
-  $("s2").classList.toggle("on",cfg.confirmCall);
-  $("s3").classList.toggle("on",cfg.confirmMsg);
-  $("homeVal").textContent=store.get("home")?"Set":"Not set";
-  paintBudget(); paintLog();
   $("sheet").classList.add("on");
+  try{
+    setVal("keyIn",cfg.key);
+    setVal("nameIn2",cfg.name);
+    setVal("capIn",cfg.cap);
+    setVal("rateIn",cfg.rate);
+    setVal("macIn",cfg.mac);
+    setVal("elKeyIn",cfg.elKey);
+    setVal("elVoiceIn",cfg.elVoice);
+    setVal("toneSel",cfg.tone);
+    setVal("rateSp",cfg.speed);
+    setVal("pitchSp",cfg.pitch);
+    setVal("accentSel",cfg.accent);
+    setVal("ringSel",cfg.ringStyle);
+    setVal("scaleSel",String(cfg.scale));
+    setVal("markIn",cfg.mark);
+    [1,2,3,4].forEach(n=>setVal("q"+n,(cfg.quick||[])[n-1]||""));
+    setSw("s1",cfg.outward); setSw("s2",cfg.confirmCall); setSw("s3",cfg.confirmMsg);
+    setSw("s4",cfg.act); setSw("s5",cfg.offer); setSw("s6",cfg.subs);
+    setSw("s7",cfg.pushAll);
+    const hv=$("homeVal"); if(hv) hv.textContent=store.get("home")?"Set":"Not set";
+    paintBudget(); paintLog(); fillVoices();
+  }catch(e){}
 };
 $("close").onclick=()=>$("sheet").classList.remove("on");
 $("save").onclick=()=>{
-  cfg.key=$("keyIn").value.trim();
-  cfg.name=$("nameIn").value.trim()||"sir";
-  cfg.cap=parseInt($("capIn").value)||60000;
-  cfg.rate=parseInt($("rateIn").value)||6;
-  cfg.mac=$("macIn").value.trim();
-  cfg.elKey=$("elKeyIn").value.trim(); cfg.elVoice=$("elVoiceIn").value.trim();
-  cfg.name=$("nameIn2").value.trim()||"sir";
-  cfg.tone=$("toneSel").value;
-  cfg.act=$("s4").classList.contains("on");
-  cfg.offer=$("s5").classList.contains("on");
-  cfg.accent=$("accentSel").value; cfg.ringStyle=$("ringSel").value;
-  cfg.scale=parseFloat($("scaleSel").value)||1; cfg.mark=$("markIn").value.trim()||"Jarvis";
-  cfg.subs=$("s6").classList.contains("on");
-  cfg.quick=[1,2,3,4].map(i=>$("q"+i).value.trim());
-  applyLook();
-  cfg.speed=parseFloat($("rateSp").value)||1.04;
-  cfg.pitch=parseFloat($("pitchSp").value)||0.88;
-  cfg.engineVoice=$("voiceSel").value||"";
-  if(has()){
-    try{ P.setSpeech(cfg.speed,cfg.pitch); }catch(e){}
-    try{ if(cfg.engineVoice) P.setVoice(cfg.engineVoice); }catch(e){}
-  }
-  cfg.outward=$("s1").classList.contains("on");
-  cfg.confirmCall=$("s2").classList.contains("on");
-  cfg.confirmMsg=$("s3").classList.contains("on");
-  ["key","name","cap","rate","mac","elKey","elVoice","tone","speed","pitch","engineVoice"]
-    .forEach(k=>store.set(k,String(cfg[k])));
-  store.set("act",cfg.act?"1":"0"); store.set("offer",cfg.offer?"1":"0");
-  ["accent","ringStyle","scale","mark"].forEach(k=>store.set(k,String(cfg[k])));
-  store.set("subs",cfg.subs?"1":"0");
-  store.set("quick",JSON.stringify(cfg.quick));
-  store.set("outward",cfg.outward?"1":"0");
-  store.set("cc",cfg.confirmCall?"1":"0");
-  store.set("cm",cfg.confirmMsg?"1":"0");
-  if(has()){ P.savePref("key",cfg.key); P.savePref("name",cfg.name); P.setCap(cfg.cap); }
+  try{
+    cfg.key=getVal("keyIn",cfg.key).trim();
+    cfg.name=(getVal("nameIn2",cfg.name)||"sir").trim()||"sir";
+    cfg.cap=parseInt(getVal("capIn",cfg.cap))||60000;
+    cfg.rate=parseInt(getVal("rateIn",cfg.rate))||6;
+    cfg.mac=getVal("macIn",cfg.mac).trim();
+    cfg.elKey=getVal("elKeyIn",cfg.elKey).trim();
+    cfg.elVoice=getVal("elVoiceIn",cfg.elVoice).trim();
+    cfg.tone=getVal("toneSel",cfg.tone);
+    cfg.speed=parseFloat(getVal("rateSp",cfg.speed))||1.04;
+    cfg.pitch=parseFloat(getVal("pitchSp",cfg.pitch))||0.88;
+    cfg.engineVoice=getVal("voiceSel","")||"";
+    cfg.accent=getVal("accentSel",cfg.accent);
+    cfg.ringStyle=getVal("ringSel",cfg.ringStyle);
+    cfg.scale=parseFloat(getVal("scaleSel",cfg.scale))||1;
+    cfg.mark=(getVal("markIn",cfg.mark)||"Jarvis").trim()||"Jarvis";
+    cfg.quick=[1,2,3,4].map(n=>getVal("q"+n,"").trim());
+    cfg.outward=getSw("s1",cfg.outward);
+    cfg.confirmCall=getSw("s2",cfg.confirmCall);
+    cfg.confirmMsg=getSw("s3",cfg.confirmMsg);
+    cfg.act=getSw("s4",cfg.act);
+    cfg.offer=getSw("s5",cfg.offer);
+    cfg.subs=getSw("s6",cfg.subs);
+    cfg.pushAll=getSw("s7",cfg.pushAll);
+
+    ["key","name","cap","rate","mac","elKey","elVoice","tone","speed","pitch",
+     "engineVoice","accent","ringStyle","scale","mark"].forEach(k=>store.set(k,String(cfg[k])));
+    store.set("act",cfg.act?"1":"0"); store.set("offer",cfg.offer?"1":"0");
+    store.set("subs",cfg.subs?"1":"0"); store.set("pushAll",cfg.pushAll?"1":"0");
+    store.set("outward",cfg.outward?"1":"0");
+    store.set("cc",cfg.confirmCall?"1":"0"); store.set("cm",cfg.confirmMsg?"1":"0");
+    store.set("quick",JSON.stringify(cfg.quick));
+
+    applyLook();
+    if(has()){
+      try{ P.setSpeech(cfg.speed,cfg.pitch); }catch(e){}
+      try{ if(cfg.engineVoice) P.setVoice(cfg.engineVoice); }catch(e){}
+      try{ P.savePref("key",cfg.key); P.savePref("name",cfg.name); P.setCap(cfg.cap); }catch(e){}
+    }
+  }catch(e){}
   $("sheet").classList.remove("on");
 };
-function fillVoices(){
-  const sel=$("voiceSel"); if(!sel) return;
-  sel.innerHTML='<option value="">Automatic</option>';
-  if(!has()) return;
-  try{
-    JSON.parse(P.voices()||"[]").forEach(v=>{
-      const o=document.createElement("option");
-      o.value=v.name;
-      o.textContent=(v.network?"◆ ":"") + v.name;
-      sel.appendChild(o);
-    });
-    sel.value=cfg.engineVoice||"";
-  }catch(e){}
-}
-$("testRow") && ($("testRow").onclick=()=>{
-  const r=parseFloat($("rateSp").value)||1.04;
-  const p=parseFloat($("pitchSp").value)||0.88;
-  const v=$("voiceSel").value;
-  if(has()){
-    try{ P.setSpeech(r,p); if(v) P.setVoice(v); P.speak("Good evening. All systems are online."); }catch(e){}
-  }
-});
-["s1","s2","s3","s4","s5","s6"].forEach(id=>{ const el=$(id); if(el) el.onclick=e=>e.currentTarget.classList.toggle("on"); });
+["s1","s2","s3","s4","s5","s6","s7"].forEach(id=>{ const el=$(id); if(el) el.onclick=e=>e.currentTarget.classList.toggle("on"); });
 $("homeVal") && ($("homeVal").parentElement.onclick=()=>{
   if(!has()) return;
   try{
@@ -982,6 +979,7 @@ cfg.ringStyle=store.get("ringStyle")||"rich";
 cfg.scale=parseFloat(store.get("scale"))||1;
 cfg.mark=store.get("mark")||"Jarvis";
 cfg.subs=store.get("subs")!=="0";
+cfg.pushAll=store.get("pushAll")==="1";
 try{ cfg.quick=JSON.parse(store.get("quick")||"null")||["1분 타이머","배터리","",""]; }
 catch(e){ cfg.quick=["1분 타이머","배터리","",""]; }
 applyLook();
