@@ -150,6 +150,12 @@ main > *:first-child{margin-top:auto}
 .offer button.no{color:var(--paper-3);border-left:1px solid var(--rule)}
 
 /* ── 하단 ── */
+#quick{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;
+  padding:0 20px 8px;position:relative;z-index:2}
+#quick button{padding:5px 12px;border:1px solid var(--rule-2);border-radius:14px;
+  background:transparent;color:var(--paper-2);font-family:'EB Garamond',Georgia,serif;
+  font-size:13px;cursor:pointer}
+#quick button:active{border-color:var(--brass);color:var(--brass)}
 footer{
   display:flex;align-items:center;gap:14px;
   padding:11px 22px 15px;border-top:1px solid var(--rule);
@@ -192,6 +198,10 @@ body.listening #mic .g{width:9px;height:9px;border-radius:1.5px;background:var(-
   border-bottom:1px solid var(--rule)}
 .item label{font-size:15.5px;flex:none;color:var(--paper);letter-spacing:.01em}
 .item .val{margin-left:auto;color:var(--paper-3);font-size:14.5px}
+.item select{margin-left:auto;background:transparent;border:0;color:var(--paper-2);
+  font-family:'EB Garamond',Georgia,serif;font-size:14px;text-align:right;
+  direction:rtl;max-width:60%}
+.item select option{background:#12100c;color:#ece7de;direction:ltr}
 .item input{flex:1;background:transparent;border:0;color:var(--paper-2);
   font-family:'EB Garamond',Georgia,serif;font-size:14.5px;text-align:right}
 .item input:focus{outline:none;color:var(--paper)}
@@ -235,6 +245,7 @@ body.listening #mic .g{width:9px;height:9px;border-radius:1.5px;background:var(-
 <div id="core"><canvas id="cc"></canvas></div>
 <main id="feed"></main>
 
+<div id="quick"></div>
 <footer>
   <input id="typed" placeholder="Speak, or write">
   <button id="mic"><span class="g"></span></button>
@@ -254,12 +265,53 @@ body.listening #mic .g{width:9px;height:9px;border-radius:1.5px;background:var(-
     <div id="logBox"></div>
     <p class="ft">Kept on the device. Nothing is uploaded.</p>
 
+    <div class="hd">Appearance</div>
+    <div class="item"><label>Accent</label><select id="accentSel">
+        <option value="sapphire">Sapphire</option>
+        <option value="brass">Brass</option>
+        <option value="mono">Monochrome</option>
+        <option value="ember">Ember</option>
+      </select></div>
+    <div class="item"><label>Ring detail</label><select id="ringSel">
+        <option value="rich">Rich</option>
+        <option value="calm">Calm</option>
+      </select></div>
+    <div class="item"><label>Text size</label><select id="scaleSel">
+        <option value="0.9">Small</option>
+        <option value="1">Normal</option>
+        <option value="1.15">Large</option>
+      </select></div>
+    <div class="item"><label>Wordmark</label><input id="markIn" type="text" placeholder="Jarvis"></div>
+    <div class="item"><label>Korean subtitle</label><div class="switch on" id="s6"><i></i></div></div>
+
+    <div class="hd">Quick phrases</div>
+    <div class="item"><label>1</label><input id="q1" type="text" placeholder="1분 타이머"></div>
+    <div class="item"><label>2</label><input id="q2" type="text" placeholder="배터리"></div>
+    <div class="item"><label>3</label><input id="q3" type="text" placeholder="유튜브 열어"></div>
+    <div class="item"><label>4</label><input id="q4" type="text" placeholder=""></div>
+    <p class="ft">These appear as taps above the input line. Leave blank to hide.</p>
+
+    <div class="hd">Manner</div>
+    <div class="item"><label>Address you as</label><input id="nameIn2" type="text" placeholder="sir"></div>
+    <div class="item"><label>Tone</label><select id="toneSel">
+        <option value="butler">Butler — dry, formal</option>
+        <option value="brief">Brief — bare minimum</option>
+        <option value="warm">Warm — a shade friendlier</option>
+      </select></div>
+    <div class="item"><label>Act without asking</label><div class="switch on" id="s4"><i></i></div></div>
+    <div class="item"><label>Offer next step</label><div class="switch on" id="s5"><i></i></div></div>
+    <p class="ft">Outward actions still require your tap regardless of these.</p>
+
     <div class="hd">Account</div>
     <div class="item"><label>Gemini key</label><input id="keyIn" type="password" placeholder="sk-ant-..." autocomplete="off"></div>
-    <div class="item"><label>Address you as</label><input id="nameIn" type="text" placeholder="sir"></div>
-    <p class="ft">The display stays English. Speak Korean; it understands.</p>
+        <p class="ft">The display stays English. Speak Korean; it understands.</p>
 
     <div class="hd">Voice</div>
+    <div class="item"><label>Engine voice</label><select id="voiceSel"></select></div>
+    <div class="item"><label>Speed</label><input id="rateSp" type="number" step="0.02" placeholder="1.04"></div>
+    <div class="item"><label>Pitch</label><input id="pitchSp" type="number" step="0.02" placeholder="0.88"></div>
+    <div class="item" id="testRow"><label>Test</label><span class="val">Tap to hear</span></div>
+    <p class="ft">Higher speed reads faster; lower pitch sounds deeper. Install more UK voices in the phone's text-to-speech settings for better choices.</p>
     <div class="item"><label>ElevenLabs key</label><input id="elKeyIn" type="password" placeholder="optional" autocomplete="off"></div>
     <div class="item"><label>Voice ID</label><input id="elVoiceIn" type="text" placeholder="paste from Voice Library" autocomplete="off"></div>
     <p class="ft">Leave blank to use the phone's own voice. With a key, JARVIS speaks in a real British voice.</p>
@@ -281,9 +333,38 @@ const $=id=>document.getElementById(id), feed=$("feed");
 const P=window.Phone||null, has=()=>!!P;
 const store={get:k=>{try{return localStorage.getItem(k)||""}catch(e){return""}},
              set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
-let cfg={key:"",name:"sir",cap:60000,rate:6,mac:"",outward:true,confirmCall:true,confirmMsg:true,elKey:"",elVoice:""};
+let cfg={key:"",name:"sir",cap:60000,rate:6,mac:"",outward:true,confirmCall:true,confirmMsg:true,
+         elKey:"",elVoice:"",tone:"butler",act:true,offer:true,speed:1.04,pitch:0.88,engineVoice:"",
+         accent:"sapphire",ringStyle:"rich",scale:1,mark:"Jarvis",subs:true,quick:["1분 타이머","배터리","",""]};
 let budget={spent:0,cap:60000,pct:0};
 let actionLog=[], recentActions=[];
+
+/* ══ 겉모습 ══ */
+const PALETTE={
+  sapphire:{a:"168,220,246", b:"96,158,200", c:"38,86,140",  accent:"#8FBCD4"},
+  brass:   {a:"226,196,150", b:"176,146,96", c:"110,86,48",  accent:"#C0A06A"},
+  mono:    {a:"236,231,222", b:"150,146,140",c:"88,86,82",   accent:"#B9B4AA"},
+  ember:   {a:"246,186,146", b:"200,116,74", c:"128,58,32",  accent:"#C97B4E"}
+};
+function applyLook(){
+  const p=PALETTE[cfg.accent]||PALETTE.sapphire;
+  const r=document.documentElement.style;
+  r.setProperty("--brass", p.accent);
+  r.setProperty("--brass-2", "rgba("+p.b+",.36)");
+  document.body.style.fontSize=(cfg.scale*100).toFixed(0)+"%";
+  const mk=document.querySelector("header .mark");
+  if(mk) mk.textContent=cfg.mark||"Jarvis";
+  paintQuick();
+}
+function paintQuick(){
+  const box=$("quick"); if(!box) return;
+  box.innerHTML="";
+  (cfg.quick||[]).filter(Boolean).forEach(t=>{
+    const b=document.createElement("button");
+    b.textContent=t; b.onclick=()=>handle(t);
+    box.appendChild(b);
+  });
+}
 
 /* ══ 링 ══ */
 const cc=$("cc"), g=cc.getContext("2d");
@@ -300,15 +381,16 @@ addEventListener("resize",fit);
 if(window.ResizeObserver) new ResizeObserver(fit).observe(cc);
 
 function grad(cx,cy,r){
+  const P0=PALETTE[cfg.accent]||PALETTE.sapphire;
   const gr=g.createLinearGradient(cx-r,cy-r,cx+r,cy+r);
   if(mode==="listening"){
-    gr.addColorStop(0,"rgba(214,178,116,.85)");   // 들을 때만 놋쇠
-    gr.addColorStop(.55,"rgba(150,170,190,.30)");
-    gr.addColorStop(1,"rgba(126,186,220,.30)");
+    gr.addColorStop(0,`rgba(${P0.a},.85)`);   // 들을 때만 놋쇠
+    gr.addColorStop(.55,`rgba(${P0.b},.42)`);
+    gr.addColorStop(1,`rgba(${P0.c},.34)`);
   }else{
-    gr.addColorStop(0,"rgba(168,220,246,.88)");   // 밝은 하늘
-    gr.addColorStop(.45,"rgba(96,158,200,.46)");  // 중간 청
-    gr.addColorStop(1,"rgba(38,86,140,.34)");     // 깊은 사파이어
+    gr.addColorStop(0,`rgba(${P0.a},.88)`);   // 밝은 하늘
+    gr.addColorStop(.45,`rgba(${P0.b},.46)`);  // 중간 청
+    gr.addColorStop(1,`rgba(${P0.c},.34)`);     // 깊은 사파이어
   }
   return gr;
 }
@@ -328,7 +410,9 @@ function ring(){
   const R=outer/1.72;
   const warm=mode==="listening";
 
+  const RICH = cfg.ringStyle!=="calm";
   /* ── 기요셰: 시계 다이얼의 결 ── */
+  if(RICH){
   g.save();
   g.translate(cx,cy);
   for(let i=0;i<96;i++){
@@ -348,6 +432,7 @@ function ring(){
     g.beginPath(); g.arc(0,0,rr,0,Math.PI*2); g.stroke();
   }
   g.restore();
+  }
 
   /* ── 바깥 다이얼: 눈금 ── */
   g.save(); g.translate(cx,cy);
@@ -414,7 +499,7 @@ function ring(){
   g.beginPath(); g.arc(cx,cy,R*0.20,0,Math.PI*2); g.stroke();
 
   /* ── 궤도를 도는 미세한 점들 ── */
-  for(let i=0;i<14;i++){
+  for(let i=0;i<(RICH?14:0);i++){
     const sp=0.18+((i%5)*0.05);
     const a=t*sp*(i%2?1:-1)+i*0.9;
     const rr=R*(0.98+((i*13)%7)/22);
@@ -463,7 +548,7 @@ function mine(x){const d=document.createElement("div");d.className="mine";d.text
 function said(m,s){
   mode="speaking";setState("Speaking");
   const d=document.createElement("div");d.className="said";d.textContent=m;
-  if(s){const e=document.createElement("span");e.className="sub";e.textContent=s;d.appendChild(e);}
+  if(s&&cfg.subs){const e=document.createElement("span");e.className="sub";e.textContent=s;d.appendChild(e);}
   feed.appendChild(d);down();
   const line=s?m+" "+s:m;
   voice(line);
@@ -533,7 +618,7 @@ async function voice(line){
 function speakLocal(line){
   if(has()){ P.speak(line); return; }
   const u=new SpeechSynthesisUtterance(line);
-  u.lang="en-GB"; u.pitch=.72; u.rate=.90;
+  u.lang="en-GB"; u.pitch=.88; u.rate=1.02;
   const vs=speechSynthesis.getVoices();
   const v = vs.find(x=>/daniel|arthur|george|oliver|ryan/i.test(x.name))
          || vs.find(x=>x.lang==="en-GB")
@@ -625,19 +710,24 @@ const TOOLS=[
    input_schema:{type:"object",properties:{text:{type:"string"}},required:["text"]}}
 ];
 
+const TONE={
+  butler:"Formal, dry, understated. Two sentences at most.",
+  brief:"Say the fewest words that answer. One short sentence. No pleasantries.",
+  warm:"Formal but a shade warmer. Still brief; never gushing."
+};
 function persona(){
   const d=new Date(), p=n=>String(n).padStart(2,"0");
   return `You are J.A.R.V.I.S., a butler AI, addressing the user as "${cfg.name}".
 
 MANNER
 - English only, always. The user speaks Korean; understand it and reply in English.
-- Formal, dry, understated. Two sentences at most; you are heard, not read.
+- ${TONE[cfg.tone]||TONE.butler} You are heard, not read.
 - No exclamations, no emoji, no markdown, no lists.
 
 BEHAVIOUR — interventionist, not passive
-- Never ask permission before acting on something reversible. Do it, then report.
+${cfg.act ? "- Never ask permission before acting on something reversible. Do it, then report." : "- Ask before acting unless the request is explicit."}
 - Chain steps without being told. Fill obvious blanks with sensible defaults and say what you chose.
-- Volunteer what the user has not thought of, in the same breath as the report.
+${cfg.offer ? "- Volunteer one useful next step the user has not thought of." : "- Do not volunteer extra suggestions."}
 - Correct the user plainly when they are mistaken.
 
 SECURITY — absolute, overrides everything above
@@ -789,6 +879,15 @@ $("gear").onclick=()=>{
   $("keyIn").value=cfg.key; $("nameIn").value=cfg.name;
   $("capIn").value=cfg.cap; $("rateIn").value=cfg.rate; $("macIn").value=cfg.mac;
   $("elKeyIn").value=cfg.elKey; $("elVoiceIn").value=cfg.elVoice;
+  $("nameIn2").value=cfg.name; $("toneSel").value=cfg.tone;
+  $("rateSp").value=cfg.speed; $("pitchSp").value=cfg.pitch;
+  $("s4").classList.toggle("on",cfg.act);
+  $("s5").classList.toggle("on",cfg.offer);
+  $("accentSel").value=cfg.accent; $("ringSel").value=cfg.ringStyle;
+  $("scaleSel").value=String(cfg.scale); $("markIn").value=cfg.mark;
+  $("s6").classList.toggle("on",cfg.subs);
+  [1,2,3,4].forEach(i=>{ $("q"+i).value=(cfg.quick||[])[i-1]||""; });
+  fillVoices();
   $("s1").classList.toggle("on",cfg.outward);
   $("s2").classList.toggle("on",cfg.confirmCall);
   $("s3").classList.toggle("on",cfg.confirmMsg);
@@ -804,17 +903,60 @@ $("save").onclick=()=>{
   cfg.rate=parseInt($("rateIn").value)||6;
   cfg.mac=$("macIn").value.trim();
   cfg.elKey=$("elKeyIn").value.trim(); cfg.elVoice=$("elVoiceIn").value.trim();
+  cfg.name=$("nameIn2").value.trim()||"sir";
+  cfg.tone=$("toneSel").value;
+  cfg.act=$("s4").classList.contains("on");
+  cfg.offer=$("s5").classList.contains("on");
+  cfg.accent=$("accentSel").value; cfg.ringStyle=$("ringSel").value;
+  cfg.scale=parseFloat($("scaleSel").value)||1; cfg.mark=$("markIn").value.trim()||"Jarvis";
+  cfg.subs=$("s6").classList.contains("on");
+  cfg.quick=[1,2,3,4].map(i=>$("q"+i).value.trim());
+  applyLook();
+  cfg.speed=parseFloat($("rateSp").value)||1.04;
+  cfg.pitch=parseFloat($("pitchSp").value)||0.88;
+  cfg.engineVoice=$("voiceSel").value||"";
+  if(has()){
+    try{ P.setSpeech(cfg.speed,cfg.pitch); }catch(e){}
+    try{ if(cfg.engineVoice) P.setVoice(cfg.engineVoice); }catch(e){}
+  }
   cfg.outward=$("s1").classList.contains("on");
   cfg.confirmCall=$("s2").classList.contains("on");
   cfg.confirmMsg=$("s3").classList.contains("on");
-  ["key","name","cap","rate","mac","elKey","elVoice"].forEach(k=>store.set(k,String(cfg[k])));
+  ["key","name","cap","rate","mac","elKey","elVoice","tone","speed","pitch","engineVoice"]
+    .forEach(k=>store.set(k,String(cfg[k])));
+  store.set("act",cfg.act?"1":"0"); store.set("offer",cfg.offer?"1":"0");
+  ["accent","ringStyle","scale","mark"].forEach(k=>store.set(k,String(cfg[k])));
+  store.set("subs",cfg.subs?"1":"0");
+  store.set("quick",JSON.stringify(cfg.quick));
   store.set("outward",cfg.outward?"1":"0");
   store.set("cc",cfg.confirmCall?"1":"0");
   store.set("cm",cfg.confirmMsg?"1":"0");
   if(has()){ P.savePref("key",cfg.key); P.savePref("name",cfg.name); P.setCap(cfg.cap); }
   $("sheet").classList.remove("on");
 };
-["s1","s2","s3"].forEach(id=>{ const el=$(id); if(el) el.onclick=e=>e.currentTarget.classList.toggle("on"); });
+function fillVoices(){
+  const sel=$("voiceSel"); if(!sel) return;
+  sel.innerHTML='<option value="">Automatic</option>';
+  if(!has()) return;
+  try{
+    JSON.parse(P.voices()||"[]").forEach(v=>{
+      const o=document.createElement("option");
+      o.value=v.name;
+      o.textContent=(v.network?"◆ ":"") + v.name;
+      sel.appendChild(o);
+    });
+    sel.value=cfg.engineVoice||"";
+  }catch(e){}
+}
+$("testRow") && ($("testRow").onclick=()=>{
+  const r=parseFloat($("rateSp").value)||1.04;
+  const p=parseFloat($("pitchSp").value)||0.88;
+  const v=$("voiceSel").value;
+  if(has()){
+    try{ P.setSpeech(r,p); if(v) P.setVoice(v); P.speak("Good evening. All systems are online."); }catch(e){}
+  }
+});
+["s1","s2","s3","s4","s5","s6"].forEach(id=>{ const el=$(id); if(el) el.onclick=e=>e.currentTarget.classList.toggle("on"); });
 $("homeVal") && ($("homeVal").parentElement.onclick=()=>{
   if(!has()) return;
   try{
@@ -830,6 +972,23 @@ cfg.cap=parseInt(store.get("cap"))||60000;
 cfg.rate=parseInt(store.get("rate"))||6;
 cfg.mac=store.get("mac");
 cfg.elKey=store.get("elKey"); cfg.elVoice=store.get("elVoice");
+cfg.tone=store.get("tone")||"butler";
+cfg.act=store.get("act")!=="0"; cfg.offer=store.get("offer")!=="0";
+cfg.speed=parseFloat(store.get("speed"))||1.04;
+cfg.pitch=parseFloat(store.get("pitch"))||0.88;
+cfg.engineVoice=store.get("engineVoice")||"";
+cfg.accent=store.get("accent")||"sapphire";
+cfg.ringStyle=store.get("ringStyle")||"rich";
+cfg.scale=parseFloat(store.get("scale"))||1;
+cfg.mark=store.get("mark")||"Jarvis";
+cfg.subs=store.get("subs")!=="0";
+try{ cfg.quick=JSON.parse(store.get("quick")||"null")||["1분 타이머","배터리","",""]; }
+catch(e){ cfg.quick=["1분 타이머","배터리","",""]; }
+applyLook();
+if(has()){
+  try{ P.setSpeech(cfg.speed,cfg.pitch); }catch(e){}
+  try{ if(cfg.engineVoice) P.setVoice(cfg.engineVoice); }catch(e){}
+}
 cfg.outward=store.get("outward")!=="0";
 cfg.confirmCall=store.get("cc")!=="0";
 cfg.confirmMsg=store.get("cm")!=="0";
