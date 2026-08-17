@@ -533,6 +533,16 @@ const MAIN=[
   [0.46,300,338,2.0,LC.BLUE_X],[0.46,66,102,2.0,LC.AMBER_X]
 ];
 const D2R=Math.PI/180;
+/* 조각마다 제 속도와 흔들림을 갖는다 */
+const MOT=MAIN.map((m,i)=>({
+  sp:(0.05+((i*7)%11)*0.022)*(i%2?1:-1),   // 도는 속도와 방향
+  wb:0.5+((i*13)%7)*0.16,                   // 흔들림 주기
+  gr:0.6+((i*5)%9)*0.09                     // 길이 변화 주기
+}));
+const SMOT=SCATTER.map((m,i)=>({
+  sp:(0.03+((i*11)%13)*0.014)*(i%3?1:-1),
+  gr:0.4+((i*3)%11)*0.07
+}));
 
 function ring(){
   fit();
@@ -546,11 +556,20 @@ function ring(){
   const k=R/ (1600*0.30);             // 로고(1600px 기준) 대비 축척
   const warm=mode==="listening";
   const RICH=cfg.ringStyle!=="calm";
-  const glow=1+lvl*0.06;
+  const glow=1;
   const speaking = mode==="speaking";
-  const spin=t*(speaking?0.16:0.045) ;   // 말할 때 눈에 띄게 돈다
-  // 발화 중 바깥으로 퍼지는 파문
-  const wave=(t*0.55)%1;
+  const spin=t*0.012;                    // 회전은 거의 느껴지지 않을 만큼만
+  /* 맥동 — 주기가 서로 안 맞는 파동 셋을 겹쳐 기계적인 박자를 없앤다.
+     반지름에 따라 위상이 밀려서 안에서 밖으로 번진다. */
+  const amp = (speaking ? 0.052 : 0.016) + lvl*0.045;
+  const breathAt = (rf)=>{
+    const ph = rf*2.4;                       // 층마다 지연
+    const a = Math.sin(t*0.83 + ph)*0.58
+            + Math.sin(t*1.29 + ph*1.7)*0.27
+            + Math.sin(t*0.41 + ph*0.6)*0.15;
+    return 1 + a*amp;
+  };
+  const wave=((t*0.47)+Math.sin(t*0.21)*0.06)%1;
   const waveR=0.35+wave*1.25;
 
   const line=(r,a0,a1,col,w,al)=>{
@@ -581,18 +600,30 @@ function ring(){
       g.arc(cx,cy,rr,0,Math.PI*2); g.stroke();
     }
     // 3. 흩어진 잔호
-    for(const s0 of SCATTER)
-      line(R*s0.r*glow, s0.a0, s0.a0+s0.sp, warm?LC.AMBER_D:s0.col, s0.w, .9);
+    for(let si=0; si<SCATTER.length; si++){
+      const s0=SCATTER[si], mv=SMOT[si];
+      const boost = speaking?2.2:1;
+      const sa=s0.a0 + t*mv.sp*18*boost;
+      const ss=s0.sp*(1+Math.sin(t*mv.gr+si)*(speaking?0.34:0.20));
+      line(R*s0.r*breathAt(s0.r), sa, sa+ss, warm?LC.AMBER_D:s0.col, s0.w, .9);
+    }
   }
 
   // 4. 주 궤도 — 파문이 지나가는 궤도는 밝아진다
-  for(const [rf,a0,a1,w,col] of MAIN){
+  for(let mi=0; mi<MAIN.length; mi++){
+    const [rf,a0,a1,w,col]=MAIN[mi];
+    const mt=MOT[mi];
+    const boost = speaking?2.4:1;
+    const drift = t*mt.sp*boost*20 + Math.sin(t*mt.wb)*(speaking?5:2.2);
+    const mid=(a0+a1)/2, half=(a1-a0)/2;
+    const grow = 1 + Math.sin(t*mt.gr + mi)*(speaking?0.30:0.14);
     let al=.95, ww=w;
     if(speaking){
       const d0=Math.abs(rf-waveR);
-      if(d0<0.22){ const k2=1-d0/0.22; al=Math.min(1,.95+k2*.5); ww=w*(1+k2*0.9); }
+      if(d0<0.22){ const k2=1-d0/0.22; al=1; ww=w*(1+k2*1.1); }
     }
-    line(R*rf*glow, a0, a1, warm&&col===LC.BLUE?LC.AMBER:col, ww, al);
+    line(R*rf*breathAt(rf), mid+drift-half*grow, mid+drift+half*grow,
+         warm&&col===LC.BLUE?LC.AMBER:col, ww, al);
   }
   // 발화 중 파문 고리
   if(speaking){
@@ -640,7 +671,7 @@ function ring(){
     const a=i*45+12-t*(speaking?18:5);
     line(R*0.063, a, a+22, LC.BLUE_D, 1.6, .9);
   }
-  const cr=Math.max(2,R*0.021)+lvl*R*0.02;
+  const cr=(Math.max(2,R*0.021)+lvl*R*0.02)*(1+(breathAt(0.1)-1)*2.6);
   const cg=g.createRadialGradient(cx,cy,0,cx,cy,cr*2.4);
   cg.addColorStop(0,"rgba(236,250,255,1)");
   cg.addColorStop(.35,`rgba(${warm?LC.AMBER:LC.BLUE},.55)`);
