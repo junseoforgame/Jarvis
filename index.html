@@ -547,7 +547,11 @@ function ring(){
   const warm=mode==="listening";
   const RICH=cfg.ringStyle!=="calm";
   const glow=1+lvl*0.06;
-  const spin=t*0.045;                 // 아주 느린 회전
+  const speaking = mode==="speaking";
+  const spin=t*(speaking?0.16:0.045) ;   // 말할 때 눈에 띄게 돈다
+  // 발화 중 바깥으로 퍼지는 파문
+  const wave=(t*0.55)%1;
+  const waveR=0.35+wave*1.25;
 
   const line=(r,a0,a1,col,w,al)=>{
     g.beginPath();
@@ -581,9 +585,23 @@ function ring(){
       line(R*s0.r*glow, s0.a0, s0.a0+s0.sp, warm?LC.AMBER_D:s0.col, s0.w, .9);
   }
 
-  // 4. 주 궤도
-  for(const [rf,a0,a1,w,col] of MAIN)
-    line(R*rf*glow, a0, a1, warm&&col===LC.BLUE?LC.AMBER:col, w, .95);
+  // 4. 주 궤도 — 파문이 지나가는 궤도는 밝아진다
+  for(const [rf,a0,a1,w,col] of MAIN){
+    let al=.95, ww=w;
+    if(speaking){
+      const d0=Math.abs(rf-waveR);
+      if(d0<0.22){ const k2=1-d0/0.22; al=Math.min(1,.95+k2*.5); ww=w*(1+k2*0.9); }
+    }
+    line(R*rf*glow, a0, a1, warm&&col===LC.BLUE?LC.AMBER:col, ww, al);
+  }
+  // 발화 중 파문 고리
+  if(speaking){
+    g.beginPath();
+    g.strokeStyle=`rgba(${LC.BLUE},${0.30*(1-wave)})`;
+    g.lineWidth=2.4;
+    g.arc(cx,cy,R*waveR,0,Math.PI*2);
+    g.stroke();
+  }
 
   // 5. 바깥 눈금 세 겹
   const tickAt=(r,a,ln,col,w)=>{
@@ -615,11 +633,11 @@ function ring(){
   g.beginPath(); g.strokeStyle=`rgba(${LC.BLUE_D},1)`; g.lineWidth=1.6;
   g.arc(cx,cy,R*0.30,0,Math.PI*2); g.stroke();
   for(let i=0;i<14;i++){
-    const a=i*25.7+t*8;
+    const a=i*25.7+t*(speaking?26:8);
     line(R*0.10, a, a+13, i%3?LC.BLUE_M:LC.AMBER_D, 1.6, .95);
   }
   for(let i=0;i<8;i++){
-    const a=i*45+12-t*5;
+    const a=i*45+12-t*(speaking?18:5);
     line(R*0.063, a, a+22, LC.BLUE_D, 1.6, .9);
   }
   const cr=Math.max(2,R*0.021)+lvl*R*0.02;
@@ -644,6 +662,8 @@ const G={
   light:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9V16h7v-2.1A6 6 0 0012 3z"/></svg>',
   air:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M3 8h13a3 3 0 10-3-3M3 13h16a3 3 0 11-3 3M3 18h9"/></svg>',
   mail:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5L12 13l8.5-6.5"/></svg>',
+  clock:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.4V12l3.1 2"/></svg>',
+  app:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><rect x="3.6" y="3.6" width="7" height="7" rx="1.6"/><rect x="13.4" y="3.6" width="7" height="7" rx="1.6"/><rect x="3.6" y="13.4" width="7" height="7" rx="1.6"/><rect x="13.4" y="13.4" width="7" height="7" rx="1.6"/></svg>',
   shield:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M12 3l7 3v6c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z"/><path d="M9.2 12.2l2 2 3.6-3.8"/></svg>'
 };
 
@@ -673,7 +693,7 @@ function said(m,s){
 }
 function entry(k,title,note,side,done){
   const d=document.createElement("div");d.className="entry"+(done?" done":"");
-  d.innerHTML='<div class="g">'+G[k]+'</div><div class="t"><b></b><span></span></div><div class="side"></div>';
+  d.innerHTML='<div class="g">'+(G[k]||G.app)+'</div><div class="t"><b></b><span></span></div><div class="side"></div>';
   d.querySelector("b").textContent=title;
   d.querySelector("span").textContent=note;
   d.querySelector(".side").textContent=side||"";
@@ -962,8 +982,10 @@ let history=[];
    무료 사용량이 매일 갱신되는 구글 모델을 쓴다.
    도구 호출 형식이 달라 여기서 변환한다. */
 
-const MODEL_FAST = "gemini-2.5-flash";
-const MODEL_DEEP = "gemini-2.5-pro";
+/* 계정마다 쓸 수 있는 모델 이름이 달라 차례로 시도한다 */
+const FAST_CHAIN=["gemini-2.5-flash","gemini-flash-latest","gemini-2.0-flash",
+                  "gemini-2.0-flash-001","gemini-1.5-flash"];
+const DEEP_CHAIN=["gemini-2.5-pro","gemini-pro-latest","gemini-2.0-flash","gemini-1.5-pro"];
 
 /* Anthropic 형식의 도구 정의를 Gemini 형식으로 옮긴다 */
 function toGeminiTypes(o){
@@ -983,7 +1005,7 @@ const FUNCTIONS = TOOLS.filter(t=>t.name && t.input_schema).map(t=>({
   parameters: toGeminiTypes(t.input_schema)
 }));
 
-async function gemini(model, contents){
+async function callModel(model, contents){
   const url="https://generativelanguage.googleapis.com/v1beta/models/"+
             model+":generateContent?key="+encodeURIComponent(cfg.key);
   const r=await fetch(url,{
@@ -997,15 +1019,38 @@ async function gemini(model, contents){
     })
   });
   if(!r.ok){
-    const t=await r.text();
-    throw new Error(r.status===400?"Key rejected or bad request":
-                    r.status===429?"Rate limited — free quota spent":
-                    "Fault "+r.status);
+    const err=new Error(r.status===400?"Key rejected or bad request":
+                        r.status===403?"Key not permitted":
+                        r.status===404?"Model not found":
+                        r.status===429?"Free quota spent for now":
+                        "Fault "+r.status);
+    err.status=r.status;
+    throw err;
   }
   const j=await r.json();
   const used=j.usageMetadata?.totalTokenCount||0;
   if(used && has()){ try{ budget=JSON.parse(P.spend(used)); paintBudget(); }catch(e){} }
   return j;
+}
+
+/* 되는 모델을 찾을 때까지 훑고, 찾으면 기억한다 */
+async function gemini(deep, contents){
+  const chain = deep ? DEEP_CHAIN : FAST_CHAIN;
+  const known = store.get(deep?"mDeep":"mFast");
+  const order = known ? [known, ...chain.filter(m=>m!==known)] : chain;
+  let last=null;
+  for(const m of order){
+    try{
+      const j=await callModel(m, contents);
+      store.set(deep?"mDeep":"mFast", m);
+      return j;
+    }catch(e){
+      last=e;
+      if(e.status===404 || e.status===403) continue;   // 다음 이름 시도
+      throw e;                                          // 그 밖의 오류는 바로 알림
+    }
+  }
+  throw last || new Error("No usable model");
 }
 
 async function handle(text){
@@ -1019,14 +1064,14 @@ async function handle(text){
   if(budget.pct>=100){ said("Today's budget is spent.","Direct commands still work."); return; }
 
   mode="thinking"; setState("Thinking");
-  const model = HARD.test(text) ? MODEL_DEEP : MODEL_FAST;
+  const deep = HARD.test(text);
 
   history.push({role:"user",parts:[{text}]});
   if(history.length>24) history=history.slice(-24);
 
   try{
     for(let round=0; round<5; round++){
-      const j=await gemini(model, history);
+      const j=await gemini(deep, history);
       const cand=(j.candidates||[])[0];
       const parts=cand?.content?.parts||[];
       history.push({role:"model",parts});
